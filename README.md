@@ -134,7 +134,7 @@ public record KafkaConsumer(String topic, String groupId, ConcurrentKafkaListene
 ```
 
 🔑 **Key Advantages**:
-- ✅ Maintains the simplicity of @KafkaListener
+- ✅ Maintains the simplicity of `@KafkaListener`
 - 🔧 Dynamically wires in tenant-specific config
 - 📦 Keeps the codebase clean and declarative
 
