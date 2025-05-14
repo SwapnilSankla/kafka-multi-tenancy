@@ -22,11 +22,6 @@ import static org.apache.kafka.clients.consumer.ConsumerConfig.VALUE_DESERIALIZE
 
 @Configuration
 public class BeanConfig {
-  private final KafkaListenerAnnotationBeanPostProcessor kafkaProcessor;
-
-  public BeanConfig(final KafkaListenerAnnotationBeanPostProcessor kafkaProcessor) {
-    this.kafkaProcessor = kafkaProcessor;
-  }
 
   @Bean
   public List<KafkaConsumer> kafkaConsumers(@Autowired final TenantConfig tenantConfig,
@@ -50,7 +45,6 @@ public class BeanConfig {
       String groupId = "group-" + tenantId;
       KafkaConsumer kafkaConsumer = new KafkaConsumer(topicName, groupId, containerFactory);
       beanFactory.initializeBean(kafkaConsumer, "KafkaConsumer" + topicName);
-      kafkaProcessor.postProcessAfterInitialization(kafkaConsumer, "KafkaConsumer" + topicName);
       return kafkaConsumer;
     });
   }
