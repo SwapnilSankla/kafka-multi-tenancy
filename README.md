@@ -166,7 +166,7 @@ public class KafkaProducer {
 }
 ```
 
-✅ **Key Benefits**
+🔑 **Key Advantages**:
 - 🔄 **Dynamic Routing**: Send messages to different Kafka clusters based on the tenant context.
 - ⚡ **Cached Templates**: No repeated instantiation—KafkaTemplate is created once per tenant.
 - 🧩 **Clean Abstraction**: Business logic remains unaware of Kafka's internal details.
