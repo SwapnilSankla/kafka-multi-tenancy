@@ -1,0 +1,12 @@
+tenant-config:
+  groups:
+    group1:
+      kafka:
+        bootstrap-server: localhost:9092
+        tenants:
+          - test-tenant1
+    group2:
+      kafka:
+        bootstrap-server: localhost:9092
+        tenants:
+          - test-tenant2
