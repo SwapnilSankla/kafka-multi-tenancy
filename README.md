@@ -119,7 +119,9 @@ To retain the power of annotations while allowing dynamic configuration, we use 
   }
 ```
 
-But there's a challenge: how do we pass tenant-specific values like topic, group ID, and container factory to the `@KafkaListener` at runtime?
+But there's a challenge: 
+
+```How do we pass tenant-specific values like topic, group ID, and container factory to the `@KafkaListener` at runtime?```
 
 We solve this using `Spring Expression Language (SpEL)` inside the annotation. Here's what the consumer looks like:
 ```java
