@@ -44,10 +44,10 @@ public class BeanConfig {
     return kafkaConfig
       .tenants()
       .stream()
-      .map(tenant -> {
+      .map(tenantId -> {
       var containerFactory = containerFactory(kafkaConfig.bootstrapServer());
-      String topicName = buildTopicName(tenant);
-      String groupId = "group-" + tenant;
+      String topicName = buildTopicName(tenantId);
+      String groupId = "group-" + tenantId;
       KafkaConsumer kafkaConsumer = new KafkaConsumer(topicName, groupId, containerFactory);
       beanFactory.initializeBean(kafkaConsumer, "KafkaConsumer" + topicName);
       kafkaProcessor.postProcessAfterInitialization(kafkaConsumer, "KafkaConsumer" + topicName);
