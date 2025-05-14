@@ -90,6 +90,35 @@ Why avoid the programmatic approach?
 
 To retain the power of annotations while allowing dynamic configuration, we use Spring's `ConfigurableListableBeanFactory` to manually register Kafka consumer beans at runtime. This allows us to still take full advantage of the `@KafkaListener` annotation.
 
+🧪 **Example Code Snippet**
+```java
+  @Bean
+  public List<KafkaConsumer> kafkaConsumers(@Autowired final TenantConfig tenantConfig,
+                                            @Autowired final ConfigurableListableBeanFactory beanFactory) {
+    return tenantConfig
+      .groups()
+      .values()
+      .stream()
+      .flatMap(group -> buildKafkaConsumers(beanFactory, group.kafka()))
+      .toList();
+  }
+
+  private Stream<KafkaConsumer> buildKafkaConsumers(final ConfigurableListableBeanFactory beanFactory,
+                                                    final TenantConfig.GroupConfig.KafkaConfig kafkaConfig) {
+    return kafkaConfig
+      .tenants()
+      .stream()
+      .map(tenantId -> {
+      var containerFactory = containerFactory(kafkaConfig.bootstrapServer());
+      String topicName = buildTopicName(tenantId);
+      String groupId = "group-" + tenantId;
+      KafkaConsumer kafkaConsumer = new KafkaConsumer(topicName, groupId, containerFactory);
+      beanFactory.initializeBean(kafkaConsumer, "KafkaConsumer" + topicName);
+      return kafkaConsumer;
+    });
+  }
+```
+
 But there's a challenge: how do we pass tenant-specific values like topic, group ID, and container factory to the `@KafkaListener` at runtime?
 
 We solve this using `Spring Expression Language (SpEL)` inside the annotation. Here's what the consumer looks like:
