@@ -1,34 +1,34 @@
 # Kafka Multi Tenancy
 
 ## Overview
-Imagine you're building a SaaS application that relies heavily on Apache Kafka to process high volumes of streaming data. As your customer base grows and data throughput increases, a single Kafka cluster might not be sufficient to handle the load. To scale effectively, you might choose to split your Kafka infrastructure into multiple clusters or groups.
+In modern SaaS applications, Apache Kafka is a powerful tool for processing massive volumes of real time data. But as you scale, especially in a multi tenant architecture, challenges begin to surface — particularly around Kafka cluster management and consumer design.
 
-Each Kafka cluster (or group) will have its own bootstrap servers, and managing this complexity at the application level becomes essential.
+This repository contains source code to build a multi tenant Kafka consumer in Spring Boot, allowing a single application instance to consume messages from multiple Kafka clusters — each dedicated to a tenant. It also covers writing multi tenant aware Kafka producer.
 
-## The Challenge
-When your system spans multiple Kafka clusters, you’re faced with a key architectural decision:
+## The Problem
+You’re building a SaaS application that relies heavily on Kafka to handle large scale streaming data. To scale efficiently,
 
-```How do you manage Kafka connectivity across clusters while maintaining tenant isolation and scalability?```
+You may decide to split your Kafka infrastructure into multiple clusters or groups — each serving a different set of tenants.
+To maintain the tenant isolation, you may create topics per tenant.
+Now the next question arises —
 
-One straightforward approach is to deploy separate instances of your application per tenant, each configured to connect to a different Kafka cluster. While this works, it quickly becomes operationally expensive and complex to manage.
+```How do you deploy application instances to support multiple Kafka clusters while minimizing operational complexity?```
 
 ### Why Per-Tenant Application Instances Don't Scale Well
-At first glance, deploying a separate instance of your application per tenant might seem like a simple and clean solution. Each instance can be configured with a dedicated Kafka bootstrap server, tenant-specific settings, and isolated compute resources.
-
-However, this approach doesn’t scale well, especially in high-growth SaaS environments. Here’s why:
+One naive solution is to deploy a separate instance of your application for each tenant/ group of tenants, with each configured to use a different Kafka cluster. While this technically works, it becomes problematic at scale.
 
 🔁 **Operational Overhead**:
 
 Managing dozens—or even hundreds—of application instances introduces significant DevOps complexity:
-  - You’ll need to maintain separate deployments, configurations, and monitoring for each tenant.
-  - CI/CD pipelines become more complex as you must parameterize builds for each tenant.
-  - Troubleshooting or rolling out fixes means repeating the process N times—once for every instance.
+  - You’ll need to maintain separate deployments, configurations, and monitoring for each tenant group.
+  - CI/CD pipelines become more complex as you must parameterize builds for each tenant group.
+  - Troubleshooting or rolling out fixes means repeating the process N times — once for every instance.
 
 💸 **Resource Inefficiency**: 
 
 Each application instance consumes memory, CPU, and possibly a dedicated container or VM:
-- This leads to under utilization of system resources, especially for low-traffic tenants.
-- Scaling infrastructure per tenant can lead to increased cloud costs.
+- This leads to under utilization of system resources, especially for low-traffic tenant groups.
+- Scaling infrastructure per tenant group can lead to increased cloud costs.
 
 ⚙️ **Limited Flexibility**:
 
@@ -37,34 +37,27 @@ Each application instance consumes memory, CPU, and possibly a dedicated contain
 
 🚧 **Increased Risk of Drift**:
 
-- With many per-tenant deployments, it's easy for configurations to drift over time.
+- With many per-tenant deployments, it’s easy for configurations to drift over time.
 - This can lead to inconsistent behavior across tenants and make debugging more difficult.
 
 ### The Solution: Application-Level Multi-Tenancy
-Instead of deploying a separate instance per tenant, you can implement multi-tenancy directly at the application level. This approach allows a single application instance to dynamically connect to different Kafka clusters based on tenant configuration.
+Instead of creating multiple app instances, you can design your application to support multi tenancy internally. This approach allows a single application instance to dynamically connect to different Kafka clusters based on the configuration.
 
 #### Benefits of this design:
 
-✅ **Tenant Isolation**: Tenants can be grouped based on data volume or criticality, with each group assigned to a different Kafka cluster.
+🔄 **Flexibility**: With appropriate planning you can migrate tenants from one cluster to another. And single application lets you connect to multiple clusters seamlessly.
 
-🔄 **Flexibility**: You can easily migrate tenants between clusters without redeploying the application.
-
-⚙️ **Operational Efficiency**: Reduces the overhead of managing and deploying multiple instances per tenant.
-
-### What This Repository Contains
-This repository provides a reference implementation for building a multi-tenant Kafka consumer using Spring Boot and Java. It demonstrates how to:
-
-- Dynamically route tenant traffic to different Kafka clusters.
-- Configure and maintain separate consumer factories per tenant.
-- Abstract tenant-specific logic using a registry and service layer.
-- The codebase is modular and extensible, making it a solid foundation for building production-grade, multi-tenant Kafka consumers.
+⚙️ **Operational Efficiency**: Reduces the overhead of managing and deploying multiple instances per tenant group.
 
 ## Approach
 
 ### Tenant Configuration
-The `application.yml` file contains the configuration for the Kafka multi-tenant application. It includes a list of Kafka clusters, each with their own bootstrap servers and tenants.
+The application.yml file holds the configuration settings for the Kafka multi tenant application. It defines a collection of Kafka clusters, each associated with its own set of bootstrap servers and a list of tenants.
 
-The idea is to group the tenants into a single cluster based on the load, compliance with security requirements, and other factors.
+Same pattern can be used to handle multi tenancy with respect to other tools like databases, AWS accounts etc.
+
+This approach ensures that the system can handle tenant specific requirements efficiently while maintaining high availability and scalability.
+
 ```yml
 tenant-config:
   groups:
@@ -81,12 +74,13 @@ tenant-config:
 ```
 
 ### 🧩 Dynamic Consumer Creation with Spring Kafka
-To support multiple tenants, we create dedicated Kafka consumers based on tenant-specific configuration (tenant-config). A key design goal was to leverage Spring Kafka’s annotation-based support (@KafkaListener) as much as possible rather than falling back to a fully programmatic listener setup.
+To support multiple tenant groups, we create dedicated Kafka consumers based on group specific tenant configuration. A key design goal was to leverage Spring Kafka’s annotation based support `@KafkaListener` as much as possible rather than falling back to a fully programmatic listener setup.
 
 Why avoid the programmatic approach?
+
 - It introduces unnecessary complexity.
 - Features like Kafka retries and error handling must be manually wired.
-- You lose the expressive simplicity and auto-configuration benefits provided by Spring.
+- You lose the expressive simplicity and auto configuration benefits provided by Spring.
 
 To retain the power of annotations while allowing dynamic configuration, we use Spring's `ConfigurableListableBeanFactory` to manually register Kafka consumer beans at runtime. This allows us to still take full advantage of the `@KafkaListener` annotation.
 
@@ -121,11 +115,14 @@ To retain the power of annotations while allowing dynamic configuration, we use 
 
 But there's a challenge: 
 
-```How do we pass tenant-specific values like topic, group ID, and container factory to the `@KafkaListener` at runtime?```
+```How do we pass tenant-specific values like topic, group ID, and container factory to the @KafkaListener at runtime?```
 
 We solve this using `Spring Expression Language (SpEL)` inside the annotation. Here's what the consumer looks like:
 ```java
 public record KafkaConsumer(String topic, String groupId, ConcurrentKafkaListenerContainerFactory<String, String> factory) {
+   @RetryableTopic(
+           backoff = @Backoff(delay = 2000),
+           dltTopicSuffix = ".dlt")
   @KafkaListener(topics = "#{__listener.topic}", groupId = "#{__listener.groupId}", containerFactory = "#{__listener.factory}")
   public void listen(String message, @Header(RECEIVED_TOPIC) String topic) {
     //implementation
@@ -133,10 +130,11 @@ public record KafkaConsumer(String topic, String groupId, ConcurrentKafkaListene
 }
 ```
 
-🔑 **Key Advantages**:
-- ✅ Maintains the simplicity of `@KafkaListener`
-- 🔧 Dynamically wires in tenant-specific config
-- 📦 Keeps the codebase clean and declarative
+Why this is powerful?
+
+- Retains simplicity of annotation based listeners
+- Fully tenant aware
+- No custom retry logic needed
 
 This design gives us the best of both worlds: the flexibility of dynamic configuration and the ease of use that comes with Spring's annotation-driven Kafka support.
 
@@ -145,17 +143,7 @@ At the heart of the producer logic is the `KafkaProducer` class, which maintains
 
 Once initialized, the `KafkaTemplate` is reused for the lifetime of the application, ensuring **efficient** resource usage and avoiding redundant object creation.
 
-🔍 **How It Works**
-
-1. When a message needs to be sent, the producer:
-   - Looks up the tenant-specific KafkaTemplate from the cache.
-   - If not found, it creates one on the fly using the tenant's bootstrap server.
-2. It then determines the Kafka topic associated with the tenant.
-3. Finally, the message is sent using the appropriate KafkaTemplate.
-
-This pattern decouples tenant routing logic from message production and enables full isolation across tenants, even at the producer level.
-
-🧪 **Example Code Snippet**
+**Example Code Snippet**
 ```java
 @Component
 public class KafkaProducer {
@@ -197,9 +185,4 @@ public class KafkaProducer {
 }
 ```
 
-🔑 **Key Advantages**:
-- 🔄 **Dynamic Routing**: Send messages to different Kafka clusters based on the tenant context.
-- ⚡ **Cached Templates**: No repeated instantiation—KafkaTemplate is created once per tenant.
-- 🧩 **Clean Abstraction**: Business logic remains unaware of Kafka's internal details.
-
-This setup completes the multi-tenancy story by enabling both consuming and producing messages per tenant, with dynamic Kafka configuration, all within a single Spring Boot application.
+That’s it! This is how you can build a fully multi tenant aware Spring boot application. This design gives us the best of both worlds: the flexibility of dynamic configuration and the ease of use that comes with Spring’s annotation-driven Kafka support. It also helps you avoiding operation complexities which comes along with “One App per Tenant Group” approach.
