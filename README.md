@@ -97,12 +97,12 @@ To retain the power of annotations while allowing dynamic configuration, we use 
       .tenants()
       .stream()
       .map(tenantId -> {
-      var containerFactory = containerFactory(kafkaConfig.bootstrapServer());
-      String topicName = buildTopicName(tenantId);
-      String groupId = "group-" + tenantId;
-      KafkaConsumer kafkaConsumer = new KafkaConsumer(topicName, groupId, containerFactory);
-      beanFactory.initializeBean(kafkaConsumer, "KafkaConsumer" + topicName);
-      return kafkaConsumer;
+        var containerFactory = containerFactory(kafkaConfig.bootstrapServer());
+        String topicName = buildTopicName(tenantId);
+        String groupId = "group-" + tenantId;
+        KafkaConsumer kafkaConsumer = new KafkaConsumer(topicName, groupId, containerFactory);
+        beanFactory.initializeBean(kafkaConsumer, "KafkaConsumer" + topicName);
+        return kafkaConsumer;
     });
   }
 ```
