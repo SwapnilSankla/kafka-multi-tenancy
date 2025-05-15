@@ -17,26 +17,20 @@ Now the next question arises —
 ### Why Per-Tenant Application Instances Don't Scale Well
 One naive solution is to deploy a separate instance of your application for each tenant/ group of tenants, with each configured to use a different Kafka cluster. While this technically works, it becomes problematic at scale.
 
-🔁 **Operational Overhead**:
-
-Managing dozens—or even hundreds—of application instances introduces significant DevOps complexity:
+🔁 **Operational Overhead**: Managing dozens—or even hundreds—of application instances introduces significant DevOps complexity.
   - You’ll need to maintain separate deployments, configurations, and monitoring for each tenant group.
   - CI/CD pipelines become more complex as you must parameterize builds for each tenant group.
   - Troubleshooting or rolling out fixes means repeating the process N times — once for every instance.
 
-💸 **Resource Inefficiency**: 
-
-Each application instance consumes memory, CPU, and possibly a dedicated container or VM:
+💸 **Resource Inefficiency**: Each application instance consumes memory, CPU, and possibly a dedicated container or VM.
 - This leads to under utilization of system resources, especially for low-traffic tenant groups.
 - Scaling infrastructure per tenant group can lead to increased cloud costs.
 
 ⚙️ **Limited Flexibility**:
-
 - Moving a tenant to a different Kafka cluster requires redeployment of the tenant’s app instance with new configuration.
 - Making global changes (e.g., security patches, feature updates) requires coordinating updates across all instances.
 
 🚧 **Increased Risk of Drift**:
-
 - With many per-tenant deployments, it’s easy for configurations to drift over time.
 - This can lead to inconsistent behavior across tenants and make debugging more difficult.
 
@@ -143,7 +137,7 @@ At the heart of the producer logic is the `KafkaProducer` class, which maintains
 
 Once initialized, the `KafkaTemplate` is reused for the lifetime of the application, ensuring **efficient** resource usage and avoiding redundant object creation.
 
-**Example Code Snippet**
+🧪 **Example Code Snippet**
 ```java
 @Component
 public class KafkaProducer {
